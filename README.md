@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/motebus-ultra-mcp-ss-badge.png)](https://mseep.ai/app/motebus-ultra-mcp-ss)
+
 
 <p align="center"> <img src="./img/mcp-ss.png" alt="drawing" width="400"/></p>
 
