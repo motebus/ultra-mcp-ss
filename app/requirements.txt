@@ -1,7 +1,7 @@
-fastapi>=0.101.0
-uvicorn>=0.23.2
-pydantic>=2.3.0
-httpx>=0.24.1
-fastapi-mcp
-python-multipart
-dotenv
+# Ultra MCP SmartScreen Server dependencies
+
+mcp[cli]>=1.28.1,<2      # FastMCP Streamable HTTP runtime + CLI
+fastapi>=0.95.0          # Web server framework (FastAPI)
+uvicorn[standard]>=0.30.0   # Supports --no-access-log, --log-level, etc.
+httpx>=0.27.0,<1         # ASGI client dependency used by MCP/FastAPI tests
+python-dotenv>=1.0.0     # Load .env configuration

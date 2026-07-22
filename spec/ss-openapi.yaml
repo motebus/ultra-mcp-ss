@@ -1,0 +1,491 @@
+openapi: 3.1.0
+info:
+  title: SmartScreen Native HTTP API
+  version: 1.0.0
+  description: |
+    OpenAPI description for the upstream SmartScreen HTTP API described in
+    ss-lab/SMARTSCREEN-API.md.
+
+    This is the native SmartScreen HTTP API that ultra-mcp-ss forwards to
+    through its MCP wrapper. It is separate from the MCP wrapper spec.
+servers:
+  - url: https://smartscreen.tv
+    description: SmartScreen production server
+security:
+  - bearerAuth: []
+paths:
+  /api:
+    post:
+      summary: Send SmartScreen command
+      description: |
+        Sends a native SmartScreen payload to one or more target devices.
+
+        The request must include:
+        - a Bearer token
+        - a to selector using one of ddn, name, or tag
+        - a data object containing a SmartScreen command payload
+      operationId: sendSmartScreenCommand
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmartScreenRequest'
+            examples:
+              dropUrl:
+                summary: Drop a video URL to the main frame
+                value:
+                  to:
+                    name: lobby-screen
+                  data:
+                    cmd: drop
+                    type: url
+                    src:
+                      - https://cdn.ypcall.com/miki/yp/djdemo/sugar.mp4
+                    duration: "30"
+                    frame: main
+                    animate: fade
+                    aniduration: "2"
+                    pmode: loop
+                    bgcolor: black
+              text:
+                summary: Show centered text
+                value:
+                  to:
+                    name: lobby-screen
+                  data:
+                    cmd: text
+                    msg: Hello World
+                    duration: "30"
+                    color: white
+                    size: "3"
+                    bgcolor: black
+                    align: center
+                    animate: fade
+                    aniduration: "2"
+              djSchedule:
+                summary: Add a scheduled DJ command
+                value:
+                  to:
+                    tag: sales-floor
+                  data:
+                    cmd: dj
+                    option: schcmd
+                    value:
+                      - payload:
+                          cmd: drop
+                          type: url
+                          src:
+                            - https://youtu.be/z_fY1pj1VBw
+                            - https://youtu.be/pmM2CeSAx0I
+                          duration: "30"
+                          frame: main
+                          animate: fade
+                          aniduration: "2"
+                          pmode: loop
+                        cron: "*/30 9-18 * * 1-5"
+                        disable: false
+      responses:
+        '200':
+          description: SmartScreen command accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmartScreenResponse'
+        '400':
+          description: Invalid SmartScreen payload
+        '401':
+          description: Missing or invalid bearer token
+        '500':
+          description: SmartScreen server error
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SmartScreenRequest:
+      type: object
+      required:
+        - to
+        - data
+      properties:
+        to:
+          $ref: '#/components/schemas/SmartScreenTarget'
+        data:
+          $ref: '#/components/schemas/SmartScreenCommand'
+    SmartScreenTarget:
+      type: object
+      description: "Device selector. Use one of ddn, name, or tag."
+      minProperties: 1
+      maxProperties: 1
+      properties:
+        ddn:
+          type: string
+        name:
+          type: string
+        tag:
+          type: string
+    SmartScreenResponse:
+      type: object
+      properties:
+        ErrCode:
+          type: integer
+          description: "0 means success. Negative codes indicate failure."
+          examples:
+            - 0
+            - -10601
+            - -10602
+        ErrMsg:
+          type: string
+        data:
+          description: Optional response payload for query-like commands.
+    SmartScreenCommand:
+      oneOf:
+        - $ref: '#/components/schemas/DropCommand'
+        - $ref: '#/components/schemas/NotifyCommand'
+        - $ref: '#/components/schemas/ToastCommand'
+        - $ref: '#/components/schemas/MarqueeCommand'
+        - $ref: '#/components/schemas/TextCommand'
+        - $ref: '#/components/schemas/AppCommand'
+        - $ref: '#/components/schemas/TouchCommand'
+        - $ref: '#/components/schemas/StatusCommand'
+        - $ref: '#/components/schemas/DjCommand'
+        - $ref: '#/components/schemas/HtmlCommand'
+        - $ref: '#/components/schemas/FrameCommand'
+      discriminator:
+        propertyName: cmd
+        mapping:
+          drop: '#/components/schemas/DropCommand'
+          notify: '#/components/schemas/NotifyCommand'
+          toast: '#/components/schemas/ToastCommand'
+          marquee: '#/components/schemas/MarqueeCommand'
+          text: '#/components/schemas/TextCommand'
+          app: '#/components/schemas/AppCommand'
+          touch: '#/components/schemas/TouchCommand'
+          status: '#/components/schemas/StatusCommand'
+          dj: '#/components/schemas/DjCommand'
+          html: '#/components/schemas/HtmlCommand'
+          frame: '#/components/schemas/FrameCommand'
+    BaseCommand:
+      type: object
+      required:
+        - cmd
+      properties:
+        cmd:
+          type: string
+    DropCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - type
+            - src
+          properties:
+            cmd:
+              type: string
+              const: drop
+            type:
+              type: string
+              enum: [url, video, audio]
+            src:
+              type: array
+              items:
+                type: string
+            duration:
+              type: string
+              default: "0"
+            frame:
+              type: string
+              enum: [main, t1, t2, t3, t4]
+            animate:
+              type: string
+              enum: [delay, fade, slide, left, right]
+            aniduration:
+              type: string
+            pmode:
+              type: string
+              enum: [loop, random]
+            bgcolor:
+              type: string
+    NotifyCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - msg
+          properties:
+            cmd:
+              type: string
+              const: notify
+            msg:
+              type: string
+            duration:
+              type: string
+            color:
+              type: string
+            size:
+              type: string
+    ToastCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - msg
+          properties:
+            cmd:
+              type: string
+              const: toast
+            msg:
+              type: string
+            heading:
+              type: string
+            icon:
+              type: string
+              enum: [info, warning, error, success]
+            transition:
+              type: string
+              enum: [plain, fade, slide]
+            duration:
+              type: string
+    MarqueeCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - msg
+          properties:
+            cmd:
+              type: string
+              const: marquee
+            msg:
+              type: string
+            duration:
+              type: string
+            color:
+              type: string
+            size:
+              type: string
+            bgcolor:
+              type: string
+    TextCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - msg
+          properties:
+            cmd:
+              type: string
+              const: text
+            msg:
+              type: string
+            duration:
+              type: string
+            color:
+              type: string
+            size:
+              type: string
+            bgcolor:
+              type: string
+            align:
+              type: string
+              enum: [center, left, right]
+            frame:
+              type: string
+              enum: [main, t1, t2, t3, t4]
+            animate:
+              type: string
+              enum: [delay, fade, slide, left, right]
+            aniduration:
+              type: string
+    AppCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - url
+          properties:
+            cmd:
+              type: string
+              const: app
+            url:
+              type: string
+            duration:
+              type: string
+            frame:
+              type: string
+              enum: [main, t1, t2, t3, t4]
+    TouchCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - option
+          properties:
+            cmd:
+              type: string
+              const: touch
+            option:
+              type: string
+              enum:
+                - playnext
+                - playprev
+                - playfirst
+                - playlist
+                - playindex
+                - play
+                - pause
+                - stop
+                - mute
+                - unmute
+                - volup
+                - voldown
+                - console
+                - setting
+                - eisetting
+            value:
+              oneOf:
+                - type: string
+                - type: object
+                  additionalProperties: true
+    StatusCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - option
+          properties:
+            cmd:
+              type: string
+              const: status
+            option:
+              type: string
+              enum: [frame, ver, devinfo]
+            value:
+              type: string
+    DjCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - option
+          properties:
+            cmd:
+              type: string
+              const: dj
+            option:
+              type: string
+              enum:
+                - logo
+                - deflogo
+                - startcmd
+                - schcmd
+                - enablecmd
+                - listcmd
+                - defcmd
+                - restart
+            value:
+              oneOf:
+                - type: string
+                - type: object
+                  additionalProperties: true
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/DjItem'
+    DjItem:
+      type: object
+      properties:
+        payload:
+          oneOf:
+            - $ref: '#/components/schemas/DropCommand'
+            - type: object
+              properties:
+                cmd:
+                  type: string
+              additionalProperties: true
+        delay:
+          type: string
+        time:
+          type: string
+        cron:
+          type: string
+        disable:
+          type: boolean
+    HtmlCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - contain
+          properties:
+            cmd:
+              type: string
+              const: html
+            contain:
+              type: string
+              description: HTML string. Replace double quotes with single quotes.
+            duration:
+              type: string
+            frame:
+              type: string
+              enum: [main, t1, t2, t3, t4]
+    FrameCommand:
+      allOf:
+        - $ref: '#/components/schemas/BaseCommand'
+        - type: object
+          required:
+            - option
+          properties:
+            cmd:
+              type: string
+              const: frame
+            option:
+              type: string
+              enum: [list, get, add, remove, update, setdefault]
+            data:
+              oneOf:
+                - type: object
+                  properties:
+                    name:
+                      type: string
+                - type: object
+                  properties:
+                    name:
+                      type: string
+                    style:
+                      $ref: '#/components/schemas/FrameStyle'
+    FrameStyle:
+      type: object
+      properties:
+        position:
+          type: string
+          enum: [absolute, center]
+        top:
+          type: string
+        bottom:
+          type: string
+        left:
+          type: string
+        right:
+          type: string
+        height:
+          type: string
+        width:
+          type: string
+        ratio:
+          type: string
+        level:
+          type: string
+        backcolor:
+          type: string
+        border:
+          type: string
+          enum: [none, solid]
+        bdwidth:
+          type: string
+        bdcolor:
+          type: string

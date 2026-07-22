@@ -1,0 +1,190 @@
+openapi: 3.1.0
+info:
+  title: Ultra MCP SmartScreen Wrapper API
+  description: |
+    MCP SmartScreen adapter with Streamable HTTP and optional legacy SSE
+    ingress. Every screen operation resolves its ss-srv owner from UltraMap
+    and uses native MoteBus xmsg on ss://mms. There is no downstream HTTP
+    fallback.
+  version: 3.0.1
+servers:
+  - url: https://ultra-mcp.u22.ypcloud.com
+    description: Lab reverse-proxied MCP gateway on u22
+paths:
+  /ping:
+    get:
+      summary: Ping
+      operationId: ping_ping_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /test:
+    get:
+      summary: Test
+      operationId: test_test_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /sse/ss:
+    get:
+      summary: Open SmartScreen SSE Session
+      description: Open the public SSE stream for the SmartScreen MCP service.
+      operationId: open_ss_sse_session
+      responses:
+        '200':
+          description: SSE stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /sse/ss/messages/:
+    post:
+      summary: Send SmartScreen MCP Message
+      description: Send MCP messages to an active SmartScreen SSE session.
+      operationId: post_ss_sse_message
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '202':
+          description: Accepted
+  /mcp/ss:
+    get:
+      summary: Open Streamable HTTP event stream
+      description: Optional server-to-client event stream for the SmartScreen MCP provider.
+      operationId: open_ss_streamable_http_session
+      responses:
+        '200':
+          description: Stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+    post:
+      summary: Send MCP Streamable HTTP message
+      description: |
+        Standard MCP JSON-RPC endpoint. Clients initialize the connection and
+        then use methods such as `tools/list` and `tools/call`. Tool calls
+        resolve `u22/ss/ss-srv-app` from `map://ultra-map-dev` and dispatch on
+        `ss://mms` through MoteBus xmsg.
+      operationId: post_ss_streamable_http_message
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: JsonRpcMessage
+            examples:
+              initialize:
+                value:
+                  jsonrpc: '2.0'
+                  id: 1
+                  method: initialize
+                  params:
+                    protocolVersion: '2025-06-18'
+                    capabilities: {}
+                    clientInfo:
+                      name: hermes
+                      version: '1.0'
+        required: true
+      responses:
+        '200':
+          description: JSON-RPC response
+          content:
+            application/json:
+              schema: {}
+        '202':
+          description: JSON-RPC notification accepted
+        '400':
+          description: Invalid MCP request
+        '401':
+          description: Unauthorized
+  /api/ss:
+    post:
+      summary: Send native SmartScreen diagnostic request
+      description: |
+        Explicit native HTTP adapter. This is not an MCP endpoint. Expected
+        payload: `{ "to": { "name": "<device-name>" }, "data": { "cmd": "..." } }`.
+        It shares the same MoteBus-only downstream adapter as MCP tools.
+      operationId: http_smartscreen_exec_api_ss_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: NativeSmartScreenPayload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid native payload
+        '401':
+          description: Unauthorized
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

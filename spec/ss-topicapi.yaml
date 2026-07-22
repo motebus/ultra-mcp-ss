@@ -1,0 +1,129 @@
+asyncapi: 3.0.0
+info:
+  title: SmartScreen Topic API
+  version: 1.0.0
+  description: |
+    Topic-based SmartScreen control contract derived from the ss-lab
+    implementation.
+
+    This documents the non-HTTP transport used by SmartScreen through:
+    - xmsg send
+    - xrpc call
+
+    It complements ss-openapi.yaml, which documents the native HTTP API.
+defaultContentType: application/json
+servers:
+  mms:
+    host: smartscreen.tv
+    protocol: secure-messaging
+    description: |
+      Logical MMS/xmsg/xrpc transport. The concrete connection setup depends on
+      the client/runtime, but the payload shapes below match the reference
+      implementation.
+channels:
+  xmsgSend:
+    address: xmsg.send
+    messages:
+      sendCommand:
+        $ref: '#/components/messages/XmsgSend'
+  xrpcCall:
+    address: xrpc.call
+    messages:
+      callCommand:
+        $ref: '#/components/messages/XrpcCall'
+operations:
+  sendSmartScreenCommand:
+    action: send
+    channel:
+      $ref: '#/channels/xmsgSend'
+    summary: Send a SmartScreen payload through xmsg
+    message:
+      $ref: '#/channels/xmsgSend/messages/sendCommand'
+  callSmartScreenRpc:
+    action: send
+    channel:
+      $ref: '#/channels/xrpcCall'
+    summary: Call a SmartScreen function through xrpc
+    message:
+      $ref: '#/channels/xrpcCall/messages/callCommand'
+components:
+  messages:
+    XmsgSend:
+      name: XmsgSend
+      title: xmsg send payload
+      payload:
+        $ref: '#/components/schemas/XmsgEnvelope'
+    XrpcCall:
+      name: XrpcCall
+      title: xrpc call payload
+      payload:
+        $ref: '#/components/schemas/XrpcEnvelope'
+  schemas:
+    XmsgEnvelope:
+      type: object
+      required:
+        - SToken
+        - Data
+      properties:
+        SToken:
+          type: string
+          description: Session or service token used by the message bus.
+        DDN:
+          type: string
+          description: Device identity. Provide DDN or Topic.
+        Topic:
+          type: string
+          description: Topic selector. Provide Topic or DDN.
+        Data:
+          $ref: '#/components/schemas/SmartScreenCommand'
+        SendTimeout:
+          type: integer
+        WaitReply:
+          type: integer
+    XrpcEnvelope:
+      type: object
+      required:
+        - SToken
+        - Func
+        - Data
+      properties:
+        SToken:
+          type: string
+        DDN:
+          type: string
+        Topic:
+          type: string
+        Func:
+          type: string
+          description: RPC function name. SmartScreen command usage typically uses cmd.
+          examples:
+            - cmd
+        Data:
+          oneOf:
+            - $ref: '#/components/schemas/SmartScreenCommand'
+            - type: object
+              additionalProperties: true
+        SendTimeout:
+          type: integer
+        WaitReply:
+          type: integer
+    SmartScreenCommand:
+      type: object
+      required:
+        - cmd
+      properties:
+        cmd:
+          type: string
+          enum:
+            - drop
+            - notify
+            - toast
+            - marquee
+            - text
+            - app
+            - touch
+            - status
+            - dj
+            - html
+            - frame
+      additionalProperties: true

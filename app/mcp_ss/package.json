@@ -1,0 +1,12 @@
+{
+  "name": "@motebus/ultra-mcp-ss-bridge",
+  "version": "3.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "motechat": "3.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
